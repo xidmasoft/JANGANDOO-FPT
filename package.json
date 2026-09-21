@@ -1,0 +1,32 @@
+{
+  "name": "jangandoo-fpt",
+  "version": "1.0.0",
+  "description": "JANGANDOO FPT - Apprendre ensemble",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 0",
+    "dev": "echo \"No dev script yet\"",
+    "build": "echo \"No build script yet\"",
+    "lint": "echo \"No lint script yet\"",
+    "typecheck": "echo \"No typecheck script yet\"",
+    "format": "echo \"No format script yet\"",
+    "prisma:generate": "prisma generate",
+    "dev:api": "pnpm --filter api start:dev",
+    "build:api": "pnpm --filter api build",
+    "test:api": "pnpm --filter api test",
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
+    "lint:web": "pnpm --filter web lint",
+    "typecheck:web": "pnpm --filter web typecheck",
+    "test:web": "pnpm --filter web test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "prisma": "5.22.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  }
+}

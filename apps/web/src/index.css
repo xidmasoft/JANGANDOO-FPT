@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%; /* #f8f9fa */
+    --foreground: 210 11% 15%; /* #212529 */
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}

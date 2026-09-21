@@ -1,0 +1,1350 @@
+// =============================================================================
+// PRISMA SCHEMA - JANGANDOO FPT
+// Plateforme Collaborative & Intelligente de Pratiques Pédagogiques
+// Ministère de la Formation Professionnelle, de l'Apprentissage et de l'Artisanat
+// République du Sénégal
+// =============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  FORMATEUR
+  CHEF_DES_TRAVAUX
+  DIRECTEUR_DES_ETUDES
+  DIRECTEUR
+  PROVISEUR
+  INSPECTEUR
+  MODERATEUR
+  ADMINISTRATEUR
+  SUPERADMIN
+}
+
+enum Civilite {
+  MONSIEUR
+  MADAME
+}
+
+enum StatutUtilisateur {
+  ACTIF
+  INACTIF
+  SUSPENDU
+}
+
+enum StatutDemandeInscription {
+  EN_ATTENTE_EMAIL
+  EMAIL_CONFIRME
+  EN_ATTENTE_VALIDATION
+  APPROUVEE
+  REFUSEE
+  EXPIREE
+}
+
+enum DecisionValidation {
+  APPROUVEE
+  REFUSEE
+}
+
+enum VisibilitePratique {
+  PUBLIC
+  METIER
+  ETABLISSEMENT
+  PRIVE
+  INSPECTEURS
+  INSPECTEURS_SELECTIONNES
+}
+
+enum StatutRealisationPratique {
+  REALISEE
+  NON_REALISEE
+}
+
+enum TypeReactionPedagogique {
+  PERTINENT
+  A_ENRICHIR
+  A_AMELIORER
+  QUESTION
+  SUGGESTION
+  RETOUR_EXPERIENCE
+  RESSOURCE_COMPLEMENTAIRE
+  ADAPTATION_PEDAGOGIQUE
+  AVIS_INSPECTEUR
+}
+
+enum ElementCibleAmelioration {
+  TITRE
+  DESCRIPTION
+  ANCRAGE_APC
+  CONTEXTE
+  PROBLEME
+  OBJECTIFS
+  DEMARCHE
+  SOLUTIONS
+  RESULTATS
+  LECONS_APPRISES
+  SPECIALISATIONS
+  RESSOURCES
+  VISIBILITE
+}
+
+enum StatutPublication {
+  BROUILLON
+  PROGRAMMEE
+  PUBLIEE
+  ARCHIVEE
+}
+
+enum EvaluationParLesPairs {
+  NON_EVALUEE
+  ACCEPTEE
+  REFUSEE
+  EN_REVISION
+}
+
+enum TypeRessource {
+  DOCUMENT
+  IMAGE
+  AUDIO
+  VIDEO
+  FICHE_TECHNIQUE
+  PLAN_ATELIER
+  GUIDE_PEDAGOGIQUE
+  AUTRE
+}
+
+enum TypeChampPratique {
+  TEXT
+  TEXTAREA
+  RICH_TEXT
+  NUMBER
+  DATE
+  SELECT
+  MULTISELECT
+  RADIO
+  CHECKBOX
+  BOOLEAN
+  FILE
+  URL
+}
+
+enum TypeReaction {
+  LIKE
+  LOVE
+  BRAVO
+  IDEA
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  MESSAGE
+  VALIDATION
+  EVALUATION
+  COMMENTAIRE
+  REACTION
+  REACTION_PEDAGOGIQUE
+  RESSOURCE
+  COMMUNAUTE
+  RECOMMENDATION
+  PUBLICATION
+  SYSTEME
+}
+
+enum CategoriePromptAI {
+  SITUATION_APC
+  OBJECTIFS
+  EVALUATION
+  SECURITE_EPI
+  REFORMULATION
+  PROGRESSION_DIDACTIQUE
+}
+
+enum CategorieTutoriel {
+  PREMIERS_PAS
+  RECIT_APC
+  EVALUATION_PAIRS
+  RESSOURCES_MULTIMEDIA
+  INSPECTION_ACADEMIQUE
+}
+
+enum StatutEnvoiEmail {
+  EN_ATTENTE
+  ENVOYE
+  ECHEC
+  DIFFERE
+}
+
+enum MotifSignalement {
+  ERREUR_PEDAGOGIQUE
+  CONTENU_INAPPROPRIE
+  SECURITE_ATELIER_EPI
+  PLAGIAT_DROITS
+  RESSOURCE_CASSEE
+  AUTRE
+}
+
+enum StatutSignalement {
+  NOUVEAU
+  EN_EXAMEN
+  TRAITE
+  REJETE
+}
+
+enum StatutAudit {
+  SUCCES
+  AVERTISSEMENT
+  ECHEC
+}
+
+enum CategoriePermission {
+  UTILISATEURS
+  PRATIQUES
+  RESSOURCES
+  REFERENTIELS
+  PILOTAGE
+  SYSTEME
+}
+
+// =============================================================================
+// 1. ORGANISATION INSTITUTIONNELLE & TERRITORIALE (FPT SÉNÉGAL)
+// =============================================================================
+
+/// Niveau d'enseignement (ex: FPT, Secondaire Général)
+model NiveauEnseignement {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  nom         String
+  description String? @db.Text
+
+  // Relations
+  iefs           IEF[]           @relation("NiveauIEFs")
+  etablissements Etablissement[] @relation("NiveauEtablissements")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("niveaux_enseignement")
+}
+
+/// Inspection d'Académie (IA) correspondant aux 14 régions du Sénégal
+model IA {
+  id                   String  @id @default(uuid())
+  code                 String  @unique // IA-DAKAR, IA-THIES, IA-LOUGA, etc.
+  nom                  String
+  regionAdministrative String? @map("region_administrative")
+  description          String? @db.Text
+
+  // Relations
+  iefs IEF[] @relation("IAIEFs")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("inspections_academie")
+}
+
+/// Inspection de l'Éducation et de la Formation (IEF départementale)
+model IEF {
+  id          String  @id @default(uuid())
+  code        String  @unique // IEF-LINGUERE, IEF-THIES-VILLE, etc.
+  nom         String
+  description String? @db.Text
+
+  // Clés étrangères
+  iaId String @map("ia_id")
+  ia   IA     @relation("IAIEFs", fields: [iaId], references: [id], onDelete: Restrict)
+
+  niveauEnseignementId String             @map("niveau_enseignement_id")
+  niveauEnseignement   NiveauEnseignement @relation("NiveauIEFs", fields: [niveauEnseignementId], references: [id], onDelete: Restrict)
+
+  // Relations
+  etablissements Etablissement[] @relation("IEFEtablissements")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([iaId])
+  @@index([niveauEnseignementId])
+  @@map("inspections_education_formation")
+}
+
+/// Établissement technique ou professionnel (CFP, CRFP, LTID, Lycée Technique, etc.)
+model Etablissement {
+  id                String  @id @default(uuid())
+  code              String  @unique // LTID, CFP-DAKAR, etc.
+  nom               String
+  typeEtablissement String? @map("type_etablissement") // CFP, CRFP, LTID, Lycée Technique
+  adresse           String?
+  ville             String?
+  telephone         String?
+  adresseEmail      String? @map("adresse_email")
+  siteWeb           String? @map("site_web")
+
+  // Clés étrangères
+  iefId String @map("ief_id")
+  ief   IEF    @relation("IEFEtablissements", fields: [iefId], references: [id], onDelete: Restrict)
+
+  niveauEnseignementId String             @map("niveau_enseignement_id")
+  niveauEnseignement   NiveauEnseignement @relation("NiveauEtablissements", fields: [niveauEnseignementId], references: [id], onDelete: Restrict)
+
+  // Relations
+  utilisateurs User[]     @relation("UserEtablissement")
+  practices    Practice[] @relation("EtablissementPractices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([iefId])
+  @@index([niveauEnseignementId])
+  @@map("etablissements")
+}
+
+// =============================================================================
+// 2. RÉFÉRENTIELS DIDACTIQUES & APPROCHE PAR COMPÉTENCES (APC)
+// =============================================================================
+
+/// Filière de formation (ex: Agroalimentaire, Électrotechnique, Mécanique, Numérique, etc.)
+model Filiere {
+  id          String  @id @default(uuid())
+  code        String  @unique // AGRO, ELEC, MEC, NUM, etc.
+  nom         String
+  description String? @db.Text
+  icone       String?
+  couleur     String?
+
+  // Relations
+  metiers   Metier[]   @relation("FiliereMetiers")
+  practices Practice[] @relation("FilierePractices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("filieres")
+}
+
+/// Métier / Spécialité rattaché à une filière (ex: Technicien Solaire, Développeur Web, etc.)
+model Metier {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  nom         String
+  description String? @db.Text
+
+  filiereId String  @map("filiere_id")
+  filiere   Filiere @relation("FiliereMetiers", fields: [filiereId], references: [id], onDelete: Cascade)
+
+  // Relations
+  competences       Competence[]       @relation("MetierCompetences")
+  metierDisciplines MetierDiscipline[] @relation("MetierToDisciplines")
+  utilisateurs      User[]             @relation("UserMetier")
+  practices         Practice[]         @relation("MetierPractices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([filiereId])
+  @@map("metiers")
+}
+
+/// Discipline d'enseignement (ex: Mathématiques appliquées, Dessin technique, Atelier)
+model Discipline {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  nom         String
+  description String? @db.Text
+
+  // Relations
+  metierDisciplines  MetierDiscipline[]    @relation("DisciplineToMetiers")
+  elementsCompetence ElementDeCompetence[] @relation("DisciplineElements")
+  utilisateurs       User[]                @relation("UserDiscipline")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("disciplines")
+}
+
+/// Table de liaison N-N entre Métiers et Disciplines
+model MetierDiscipline {
+  metierId String @map("metier_id")
+  metier   Metier @relation("MetierToDisciplines", fields: [metierId], references: [id], onDelete: Cascade)
+
+  disciplineId String     @map("discipline_id")
+  discipline   Discipline @relation("DisciplineToMetiers", fields: [disciplineId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([metierId, disciplineId])
+  @@map("metiers_disciplines")
+}
+
+/// Niveau de qualification professionnelle FPT officiel (CAP, BEP, BT, BTS, CQP, Titre Pro...)
+model NiveauQualification {
+  id          String  @id @default(uuid())
+  code        String  @unique // CAP, BEP, BT, BTS, CQP, TITRE_PRO, etc.
+  nom         String // ex: Brevet de Technicien (BT)
+  description String? @db.Text
+  ordre       Int     @default(0)
+
+  // Relations
+  practices Practice[] @relation("QualificationPractices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("niveaux_qualification")
+}
+
+/// Compétence APC selon le référentiel métier national (ex: C1, C2...)
+model Competence {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  nom         String
+  description String? @db.Text
+
+  metierId String @map("metier_id")
+  metier   Metier @relation("MetierCompetences", fields: [metierId], references: [id], onDelete: Cascade)
+
+  // Relations
+  elements  ElementDeCompetence[] @relation("CompetenceElements")
+  practices Practice[]            @relation("CompetencePractices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([metierId])
+  @@map("competences")
+}
+
+/// Élément de compétence constitutif d'une compétence
+model ElementDeCompetence {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  intitule    String
+  description String? @db.Text
+
+  competenceId String     @map("competence_id")
+  competence   Competence @relation("CompetenceElements", fields: [competenceId], references: [id], onDelete: Cascade)
+
+  disciplineId String?     @map("discipline_id")
+  discipline   Discipline? @relation("DisciplineElements", fields: [disciplineId], references: [id], onDelete: SetNull)
+
+  // Relations
+  objectifs ObjectifSpecifique[] @relation("ElementObjectifs")
+  practices Practice[]           @relation("ElementCompetencePractices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([competenceId])
+  @@index([disciplineId])
+  @@map("elements_de_competence")
+}
+
+/// Objectif spécifique didactique opérationnel
+model ObjectifSpecifique {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  intitule    String
+  description String? @db.Text
+
+  elementDeCompetenceId String              @map("element_de_competence_id")
+  elementDeCompetence   ElementDeCompetence @relation("ElementObjectifs", fields: [elementDeCompetenceId], references: [id], onDelete: Cascade)
+
+  // Relations
+  practices Practice[] @relation("ObjectifPractices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([elementDeCompetenceId])
+  @@map("objectifs_specifiques")
+}
+
+/// Spécialisation d'atelier ou de laboratoire (permet de personnaliser les fiches didactiques)
+model Specialisation {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  nom         String
+  description String? @db.Text
+  active      Boolean @default(true)
+
+  // Relations
+  champs    ChampPratique[]          @relation("SpecialisationChamps")
+  pratiques PracticeSpecialisation[] @relation("SpecialisationPractices")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("specialisations")
+}
+
+/// Champ dynamique configurable par spécialisation
+model ChampPratique {
+  id               String         @id @default(uuid())
+  specialisationId String         @map("specialisation_id")
+  specialisation   Specialisation @relation("SpecialisationChamps", fields: [specialisationId], references: [id], onDelete: Cascade)
+
+  code        String
+  label       String
+  description String?           @db.Text
+  type        TypeChampPratique @default(TEXT)
+  obligatoire Boolean           @default(false)
+  ordre       Int               @default(0)
+  options     Json? // Pour SELECT, MULTISELECT, RADIO, CHECKBOX
+  active      Boolean           @default(true)
+
+  // Relations
+  valeurs ValeurChampPratique[] @relation("ChampValeurs")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([specialisationId, code])
+  @@index([specialisationId])
+  @@map("champs_pratiques")
+}
+
+/// Valeur saisie pour un champ dynamique dans une pratique pédagogique
+model ValeurChampPratique {
+  id         String   @id @default(uuid())
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeValeursChamps", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  champPratiqueId String        @map("champ_pratique_id")
+  champPratique   ChampPratique @relation("ChampValeurs", fields: [champPratiqueId], references: [id], onDelete: Cascade)
+
+  valeur Json // Texte, nombre, tableau, objet, boolean
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([practiceId, champPratiqueId])
+  @@index([practiceId])
+  @@index([champPratiqueId])
+  @@map("valeurs_champs_pratiques")
+}
+
+// =============================================================================
+// 3. UTILISATEURS, AUTHENTIFICATION, SÉCURITÉ & RBAC
+// =============================================================================
+
+model User {
+  id           String            @id @default(uuid())
+  matricule    String?           @unique @map("matricule_utilisateur")
+  email        String            @unique @map("adresse_email")
+  passwordHash String?           @map("mot_de_passe_hash")
+  nom          String
+  prenom       String
+  civilite     Civilite          @default(MONSIEUR)
+  telephone    String?
+  role         UserRole          @default(FORMATEUR)
+  avatarUrl    String?           @map("avatar_url")
+  biographie   String?           @db.Text
+  statut       StatutUtilisateur @default(ACTIF)
+
+  // Rattachement institutionnel FPT
+  etablissementId String?        @map("etablissement_id")
+  etablissement   Etablissement? @relation("UserEtablissement", fields: [etablissementId], references: [id], onDelete: SetNull)
+
+  disciplineId String?     @map("discipline_id")
+  discipline   Discipline? @relation("UserDiscipline", fields: [disciplineId], references: [id], onDelete: SetNull)
+
+  metierId String? @map("metier_id")
+  metier   Metier? @relation("UserMetier", fields: [metierId], references: [id], onDelete: SetNull)
+
+  roleCustomId String? @map("role_custom_id")
+  roleCustom   Role?   @relation("UserRoleCustom", fields: [roleCustomId], references: [id], onDelete: SetNull)
+
+  roleDemande       String?   @map("role_demande")
+  estActif          Boolean   @default(true) @map("est_actif")
+  estVerifie        Boolean   @default(false) @map("est_verifie")
+  derniereConnexion DateTime? @map("derniere_connexion")
+
+  // Relations
+  practices                            Practice[]                      @relation("UserPractices")
+  favorites                            Favorite[]                      @relation("UserFavorites")
+  collections                          UserCollection[]                @relation("UserCollections")
+  notificationsRecues                  Notification[]                  @relation("UserNotificationsRecues")
+  notificationsEnvoyees                Notification[]                  @relation("UserNotificationsEnvoyees")
+  demandesInscription                  DemandeInscription[]            @relation("UserDemandes")
+  validationsEffectuees                ValidationInscription[]         @relation("ValidateurValidations")
+  evaluationsDonnees                   EvaluationPratique[]            @relation("EvaluateurEvaluations")
+  commentaires                         CommentairePratique[]           @relation("UserCommentaires")
+  reactions                            ReactionPratique[]              @relation("UserReactions")
+  ressources                           Ressource[]                     @relation("UserRessources")
+  signalementsEmis                     SignalementPratique[]           @relation("SignaleurSignalements")
+  signalementsTraites                  SignalementPratique[]           @relation("ModerateurSignalements")
+  auditLogs                            AuditLog[]                      @relation("UserAuditLogs")
+  sessions                             Session[]                       @relation("UserSessions")
+  messagesEnvoyes                      MessagePrive[]                  @relation("MessagesExpediteur")
+  conversationParticipations           ConversationParticipant[]       @relation("ParticipantConversations")
+  reactionsPedagogiques                ReactionPedagogique[]           @relation("UserToReactionsPedagogiques")
+  pratiquesAssigneesEnTantQuInspecteur PratiquePedagogiqueInspecteur[] @relation("InspectorToPracticeAssignments")
+  consultationsRecues                  PracticeConsultation[]          @relation("AuteurConsultations")
+  consultationsEffectuees              PracticeConsultation[]          @relation("LecteurConsultations")
+  aiGenerations                        AIGenerationLog[]               @relation("UserAIGenerations")
+  emailLogs                            EmailLog[]                      @relation("UserEmailLogs")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([etablissementId])
+  @@index([disciplineId])
+  @@index([metierId])
+  @@index([role])
+  @@index([statut])
+  @@map("users")
+}
+
+/// Rôle RBAC avec gestion des permissions granulaires
+model Role {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  nom         String
+  description String? @db.Text
+  niveauAcces Int     @default(1) @map("niveau_acces") // 1 (Formateur) à 5 (SuperAdmin)
+  estInterne  Boolean @default(false) @map("est_interne")
+
+  // Relations
+  utilisateurs    User[]           @relation("UserRoleCustom")
+  rolePermissions RolePermission[] @relation("RolePermissions")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+/// Permission système granulaire
+model Permission {
+  id          String              @id @default(uuid())
+  code        String              @unique // ex: PRACTICES_CREATE, REFERENTIELS_MANAGE, USERS_VALIDATE
+  nom         String
+  description String?             @db.Text
+  categorie   CategoriePermission @default(PRATIQUES)
+
+  // Relations
+  rolePermissions RolePermission[] @relation("PermissionRoles")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("permissions")
+}
+
+/// Table de liaison N-N entre Rôles et Permissions
+model RolePermission {
+  roleId String @map("role_id")
+  role   Role   @relation("RolePermissions", fields: [roleId], references: [id], onDelete: Cascade)
+
+  permissionId String     @map("permission_id")
+  permission   Permission @relation("PermissionRoles", fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([roleId, permissionId])
+  @@map("roles_permissions")
+}
+
+/// Session active pour JWT / Refresh Token
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  user         User     @relation("UserSessions", fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime @map("expires_at")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Jeton sécurisé de réinitialisation de mot de passe
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  email     String
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("password_reset_tokens")
+}
+
+/// Demande d'inscription et de validation institutionnelle
+model DemandeInscription {
+  id                     String                   @id @default(uuid())
+  utilisateurId          String                   @map("utilisateur_id")
+  utilisateur            User                     @relation("UserDemandes", fields: [utilisateurId], references: [id], onDelete: Cascade)
+  statut                 StatutDemandeInscription @default(EN_ATTENTE_EMAIL)
+  roleDemande            String                   @map("role_demande")
+  tokenConfirmationEmail String?                  @unique @map("token_confirmation_email")
+  tokenExpiration        DateTime?                @map("token_expiration")
+  dateConfirmationEmail  DateTime?                @map("date_confirmation_email")
+
+  // Relations
+  validations ValidationInscription[] @relation("DemandeValidations")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([utilisateurId])
+  @@index([statut])
+  @@map("demandes_inscription")
+}
+
+/// Décision de validation par l'administration ou les pairs
+model ValidationInscription {
+  id                   String             @id @default(uuid())
+  demandeInscriptionId String             @map("demande_inscription_id")
+  demande              DemandeInscription @relation("DemandeValidations", fields: [demandeInscriptionId], references: [id], onDelete: Cascade)
+
+  validateurId String @map("validateur_id")
+  validateur   User   @relation("ValidateurValidations", fields: [validateurId], references: [id], onDelete: Cascade)
+
+  decision       DecisionValidation
+  commentaire    String?            @db.Text
+  dateValidation DateTime           @default(now()) @map("date_validation")
+
+  @@index([demandeInscriptionId])
+  @@index([validateurId])
+  @@map("validations_inscription")
+}
+
+// =============================================================================
+// 4. PRATIQUES PÉDAGOGIQUES (FICHES APC DIDACTIQUES)
+// =============================================================================
+
+/// Récit d'expérience et fiche pédagogique APC complète en 7 sections
+model Practice {
+  id          String  @id @default(uuid())
+  titre       String
+  description String? @db.Text
+
+  // Ancrage APC institutionnel
+  filiereId String?  @map("filiere_id")
+  filiere   Filiere? @relation("FilierePractices", fields: [filiereId], references: [id], onDelete: SetNull)
+
+  metierId String? @map("metier_id")
+  metier   Metier? @relation("MetierPractices", fields: [metierId], references: [id], onDelete: SetNull)
+
+  competenceId String?     @map("competence_id")
+  competence   Competence? @relation("CompetencePractices", fields: [competenceId], references: [id], onDelete: SetNull)
+
+  elementDeCompetenceId String?              @map("element_de_competence_id")
+  elementDeCompetence   ElementDeCompetence? @relation("ElementCompetencePractices", fields: [elementDeCompetenceId], references: [id], onDelete: SetNull)
+
+  objectifSpecifiqueId String?             @map("objectif_specifique_id")
+  objectifSpecifique   ObjectifSpecifique? @relation("ObjectifPractices", fields: [objectifSpecifiqueId], references: [id], onDelete: SetNull)
+
+  niveauCible           String?              @map("niveau_cible") // CAP, BEP, BT, BTS, CQP
+  niveauQualificationId String?              @map("niveau_qualification_id")
+  niveauQualification   NiveauQualification? @relation("QualificationPractices", fields: [niveauQualificationId], references: [id], onDelete: SetNull)
+
+  // Les 7 sections didactiques canoniques du récit d'expérience APC
+  contexte          String  @db.Text
+  problemeRencontre String  @map("probleme_rencontre") @db.Text
+  objectifs         String? @db.Text
+  demarche          String  @db.Text
+  solutions         String  @db.Text
+  resultats         String  @db.Text
+  leconsApprises    String  @map("lecons_apprises") @db.Text
+
+  // Statut de réalisation didactique (expérimentée sur le terrain ou proposition)
+  statutRealisation StatutRealisationPratique @default(REALISEE) @map("statut_realisation")
+
+  // Publication & Confidentialité
+  visibilite            VisibilitePratique    @default(PUBLIC)
+  statutPublication     StatutPublication     @default(PUBLIEE) @map("statut_publication")
+  dateProgrammation     DateTime?             @map("date_programmation")
+  datePublication       DateTime?             @map("date_publication")
+  evaluationParLesPairs EvaluationParLesPairs @default(NON_EVALUEE) @map("evaluation_par_les_pairs")
+
+  // Statistiques & Métriques
+  vuesCount                  Int   @default(0) @map("vues_count")
+  favorisCount               Int   @default(0) @map("favoris_count")
+  reactionsPedagogiquesCount Int   @default(0) @map("reactions_pedagogiques_count")
+  scoreMoyen                 Float @default(0.0) @map("score_moyen")
+
+  // Relations d'auteur & établissement
+  authorId String @map("author_id")
+  author   User   @relation("UserPractices", fields: [authorId], references: [id], onDelete: Cascade)
+
+  etablissementId String?        @map("etablissement_id")
+  etablissement   Etablissement? @relation("EtablissementPractices", fields: [etablissementId], references: [id], onDelete: SetNull)
+
+  // Enrichissement Didactique & Accès Inspecteurs Ciblés
+  inspecteursCibles     PratiquePedagogiqueInspecteur[] @relation("PracticeToInspecteurs")
+  reactionsPedagogiques ReactionPedagogique[]           @relation("PracticeToReactionsPedagogiques")
+
+  // Relations enfants
+  specialisations PracticeSpecialisation[] @relation("PracticeToSpecialisations")
+  valeursChamps   ValeurChampPratique[]    @relation("PracticeValeursChamps")
+  ressources      Ressource[]              @relation("PracticeRessources")
+  evaluations     EvaluationPratique[]     @relation("PracticeEvaluations")
+  consultations   PracticeConsultation[]   @relation("PracticeConsultations")
+  commentaires    CommentairePratique[]    @relation("PracticeCommentaires")
+  reactions       ReactionPratique[]       @relation("PracticeReactions")
+  favorites       Favorite[]               @relation("PracticeFavorites")
+  collectionItems CollectionItem[]         @relation("PracticeCollectionItems")
+  signalements    SignalementPratique[]    @relation("PracticeSignalements")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([authorId])
+  @@index([filiereId])
+  @@index([metierId])
+  @@index([competenceId])
+  @@index([elementDeCompetenceId])
+  @@index([niveauQualificationId])
+  @@index([statutPublication])
+  @@index([statutRealisation])
+  @@index([visibilite])
+  @@map("practices")
+}
+
+/// Table de liaison pour les pratiques en visibilité « INSPECTEURS_SELECTIONNES »
+model PratiquePedagogiqueInspecteur {
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeToInspecteurs", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  inspecteurId String @map("inspecteur_id")
+  inspecteur   User   @relation("InspectorToPracticeAssignments", fields: [inspecteurId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([practiceId, inspecteurId])
+  @@index([inspecteurId])
+  @@index([practiceId])
+  @@map("pratiques_pedagogiques_inspecteurs")
+}
+
+/// Contribution professionnelle didactique pour l'amélioration continue
+model ReactionPedagogique {
+  id String @id @default(uuid())
+
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeToReactionsPedagogiques", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  auteurId String @map("auteur_id")
+  auteur   User   @relation("UserToReactionsPedagogiques", fields: [auteurId], references: [id], onDelete: Cascade)
+
+  type           TypeReactionPedagogique
+  elementsCibles ElementCibleAmelioration[] @map("elements_cibles")
+  commentaire    String                     @db.Text
+  ressourceTitre String?                    @map("ressource_titre")
+  ressourceUrl   String?                    @map("ressource_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([practiceId])
+  @@index([auteurId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("reactions_pedagogiques")
+}
+
+/// Table de liaison N-N entre Pratique et Spécialisation
+model PracticeSpecialisation {
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeToSpecialisations", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  specialisationId String         @map("specialisation_id")
+  specialisation   Specialisation @relation("SpecialisationPractices", fields: [specialisationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([practiceId, specialisationId])
+  @@map("practices_specialisations")
+}
+
+/// Ressource didactique associée (fiches techniques, documents, médias, schémas)
+model Ressource {
+  id         String    @id @default(uuid())
+  practiceId String?   @map("practice_id")
+  practice   Practice? @relation("PracticeRessources", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  utilisateurId String @map("utilisateur_id")
+  utilisateur   User   @relation("UserRessources", fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  type           TypeRessource @default(DOCUMENT)
+  nomOriginal    String        @map("nom_original")
+  nomStockage    String        @map("nom_stockage")
+  typeMime       String        @map("type_mime")
+  tailleOctets   Int           @map("taille_octets")
+  cheminStockage String        @map("chemin_stockage")
+  urlAcces       String?       @map("url_acces")
+  description    String?       @db.Text
+
+  // Relations
+  collectionItems CollectionItem[] @relation("RessourceCollectionItems")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([practiceId])
+  @@index([utilisateurId])
+  @@index([type])
+  @@map("ressources")
+}
+
+/// Évaluation formative par les pairs ou inspection pédagogique
+model EvaluationPratique {
+  id         String   @id @default(uuid())
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeEvaluations", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  evaluateurId String @map("evaluateur_id")
+  evaluateur   User   @relation("EvaluateurEvaluations", fields: [evaluateurId], references: [id], onDelete: Cascade)
+
+  statut                EvaluationParLesPairs @default(ACCEPTEE)
+  noteGlobale           Float?                @map("note_globale") // Note sur 5 ou 10
+  conformiteAPC         Boolean               @default(true) @map("conformite_apc")
+  conformiteSecuriteEPI Boolean               @default(true) @map("conformite_securite_epi")
+  pointsForts           String?               @map("points_forts") @db.Text
+  pistesAmelioration    String?               @map("pistes_amelioration") @db.Text
+
+  dateEvaluation DateTime @default(now()) @map("date_evaluation")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([practiceId, evaluateurId])
+  @@index([practiceId])
+  @@index([evaluateurId])
+  @@map("evaluations_pratiques")
+}
+
+/// Événement de consultation d'une pratique pédagogique (moteur d'impact et suivi temporel Recharts / D3)
+model PracticeConsultation {
+  id String @id @default(uuid())
+
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeConsultations", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  auteurId String? @map("auteur_id")
+  auteur   User?   @relation("AuteurConsultations", fields: [auteurId], references: [id], onDelete: SetNull)
+
+  consulteurId String? @map("consulteur_id")
+  consulteur   User?   @relation("LecteurConsultations", fields: [consulteurId], references: [id], onDelete: SetNull)
+
+  dureeSecondes  Int?    @map("duree_secondes")
+  sourceReferrer String? @map("source_referrer") // ex: dashboard, catalog, search, recommendations, feed
+  adresseIp      String? @map("adresse_ip")
+  userAgent      String? @map("user_agent")
+
+  timestamp DateTime @default(now())
+
+  @@index([practiceId])
+  @@index([auteurId])
+  @@index([consulteurId])
+  @@index([timestamp])
+  @@map("practice_consultations")
+}
+
+// =============================================================================
+// 5. COLLABORATION, INTERACTIONS SOCIALES & NOTIFICATIONS
+// =============================================================================
+
+/// Commentaire sur une pratique pédagogique (support des réponses en arbre)
+model CommentairePratique {
+  id         String   @id @default(uuid())
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeCommentaires", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  auteurId String @map("auteur_id")
+  auteur   User   @relation("UserCommentaires", fields: [auteurId], references: [id], onDelete: Cascade)
+
+  parentId String?               @map("parent_id")
+  parent   CommentairePratique?  @relation("CommentaireReponses", fields: [parentId], references: [id], onDelete: Cascade)
+  reponses CommentairePratique[] @relation("CommentaireReponses")
+
+  texte String @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([practiceId])
+  @@index([auteurId])
+  @@index([parentId])
+  @@map("commentaires_pratiques")
+}
+
+/// Réaction pédagogique d'encouragement (Bravo, Idée, Like, Love)
+model ReactionPratique {
+  id         String   @id @default(uuid())
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeReactions", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  utilisateurId String @map("utilisateur_id")
+  utilisateur   User   @relation("UserReactions", fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  type TypeReaction @default(LIKE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([practiceId, utilisateurId, type])
+  @@index([practiceId])
+  @@index([utilisateurId])
+  @@map("reactions_pratiques")
+}
+
+/// Mise en favori simple d'une pratique
+model Favorite {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation("UserFavorites", fields: [userId], references: [id], onDelete: Cascade)
+
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeFavorites", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, practiceId])
+  @@index([userId])
+  @@index([practiceId])
+  @@map("favorites")
+}
+
+/// Collection / Dossier personnalisé de pratiques et ressources pédagogiques
+model UserCollection {
+  id            String @id @default(uuid())
+  utilisateurId String @map("utilisateur_id")
+  utilisateur   User   @relation("UserCollections", fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  nom         String
+  description String? @db.Text
+  couleur     String? @default("emerald")
+  icone       String?
+  estPublique Boolean @default(false) @map("est_publique")
+
+  // Relations
+  items CollectionItem[] @relation("CollectionItems")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([utilisateurId])
+  @@map("user_collections")
+}
+
+/// Éléments contenus dans une collection personnalisée
+model CollectionItem {
+  id           String         @id @default(uuid())
+  collectionId String         @map("collection_id")
+  collection   UserCollection @relation("CollectionItems", fields: [collectionId], references: [id], onDelete: Cascade)
+
+  practiceId String?   @map("practice_id")
+  practice   Practice? @relation("PracticeCollectionItems", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  ressourceId String?    @map("ressource_id")
+  ressource   Ressource? @relation("RessourceCollectionItems", fields: [ressourceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([collectionId, practiceId])
+  @@unique([collectionId, ressourceId])
+  @@index([collectionId])
+  @@map("collection_items")
+}
+
+/// Notification utilisateur ciblée
+model Notification {
+  id             String @id @default(uuid())
+  destinataireId String @map("destinataire_id")
+  destinataire   User   @relation("UserNotificationsRecues", fields: [destinataireId], references: [id], onDelete: Cascade)
+
+  emetteurId String? @map("emetteur_id")
+  emetteur   User?   @relation("UserNotificationsEnvoyees", fields: [emetteurId], references: [id], onDelete: SetNull)
+
+  type       NotificationType @default(INFO)
+  titre      String
+  message    String           @db.Text
+  lienCible  String?          @map("lien_cible")
+  pratiqueId String?          @map("pratique_id")
+
+  estLu Boolean @default(false) @map("est_lu")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([destinataireId])
+  @@index([estLu])
+  @@map("notifications")
+}
+
+/// Conversation de messagerie directe ou de groupe pédagogique
+model Conversation {
+  id        String  @id @default(uuid())
+  titre     String?
+  estGroupe Boolean @default(false) @map("est_groupe")
+
+  // Relations
+  participants ConversationParticipant[] @relation("ConversationParticipants")
+  messages     MessagePrive[]            @relation("ConversationMessages")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("conversations")
+}
+
+/// Participants à une conversation
+model ConversationParticipant {
+  conversationId String       @map("conversation_id")
+  conversation   Conversation @relation("ConversationParticipants", fields: [conversationId], references: [id], onDelete: Cascade)
+
+  userId String @map("user_id")
+  user   User   @relation("ParticipantConversations", fields: [userId], references: [id], onDelete: Cascade)
+
+  derniereLecture DateTime? @map("derniere_lecture")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+/// Message privé échangé entre professionnels FPT
+model MessagePrive {
+  id             String       @id @default(uuid())
+  conversationId String       @map("conversation_id")
+  conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+
+  expediteurId String @map("expediteur_id")
+  expediteur   User   @relation("MessagesExpediteur", fields: [expediteurId], references: [id], onDelete: Cascade)
+
+  contenu String  @db.Text
+  estLu   Boolean @default(false) @map("est_lu")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([conversationId])
+  @@index([expediteurId])
+  @@map("messages_prives")
+}
+
+// =============================================================================
+// 6. MODÉRATION, SIGNALEMENTS & ASSURANCE QUALITÉ
+// =============================================================================
+
+/// Signalement d'une anomalie pédagogique ou de sécurité d'atelier
+model SignalementPratique {
+  id         String   @id @default(uuid())
+  practiceId String   @map("practice_id")
+  practice   Practice @relation("PracticeSignalements", fields: [practiceId], references: [id], onDelete: Cascade)
+
+  signaleurId String? @map("signaleur_id")
+  signaleur   User?   @relation("SignaleurSignalements", fields: [signaleurId], references: [id], onDelete: SetNull)
+
+  signaleurNom   String? @map("signaleur_nom")
+  signaleurEmail String? @map("signaleur_email")
+
+  motif       MotifSignalement
+  description String            @db.Text
+  estUrgent   Boolean           @default(false) @map("est_urgent")
+  statut      StatutSignalement @default(NOUVEAU)
+
+  moderateurId String? @map("moderateur_id")
+  moderateur   User?   @relation("ModerateurSignalements", fields: [moderateurId], references: [id], onDelete: SetNull)
+
+  resolutionCommentaire String?   @map("resolution_commentaire") @db.Text
+  dateResolution        DateTime? @map("date_resolution")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([practiceId])
+  @@index([statut])
+  @@index([motif])
+  @@map("signalements_pratiques")
+}
+
+/// Journal d'audit institutionnel et traçabilité des opérations sensibles
+model AuditLog {
+  id            String  @id @default(uuid())
+  utilisateurId String? @map("utilisateur_id")
+  utilisateur   User?   @relation("UserAuditLogs", fields: [utilisateurId], references: [id], onDelete: SetNull)
+
+  utilisateurNom  String? @map("utilisateur_nom")
+  utilisateurRole String? @map("utilisateur_role")
+
+  action      String // ex: USER_REGISTER, PRACTICE_PUBLISH, PRACTICE_DELETE, ROLE_ASSIGN
+  ressource   String // ex: users, practices, referentiels, system
+  ressourceId String?     @map("ressource_id")
+  details     String?     @db.Text
+  statut      StatutAudit @default(SUCCES)
+
+  adresseIp String? @map("adresse_ip")
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([utilisateurId])
+  @@index([action])
+  @@index([ressource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// =============================================================================
+// 7. ASSISTANCE PÉDAGOGIQUE INTELLIGENTE (IA & APC)
+// =============================================================================
+
+/// Modèle de prompt prédéfini pour l'assistance pédagogique intelligente APC
+model AIPromptTemplate {
+  id             String            @id @default(uuid())
+  code           String            @unique // SITUATION_APC, OBJECTIFS_PEDAGOGIQUES, CRITERES_EVALUATION, SECURITE_EPI, REFORMULATION...
+  titre          String
+  description    String            @db.Text
+  categorie      CategoriePromptAI
+  templatePrompt String            @map("template_prompt") @db.Text
+  systemPrompt   String?           @map("system_prompt") @db.Text
+  variables      Json? // ex: ["filiere", "metier", "competence", "titre"]
+  estActif       Boolean           @default(true) @map("est_actif")
+  ordre          Int               @default(0)
+
+  // Relations
+  generations AIGenerationLog[] @relation("PromptTemplateGenerations")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([categorie])
+  @@map("ai_prompt_templates")
+}
+
+/// Journal des requêtes et réponses générées par l'assistant pédagogique IA
+model AIGenerationLog {
+  id String @id @default(uuid())
+
+  utilisateurId String? @map("utilisateur_id")
+  utilisateur   User?   @relation("UserAIGenerations", fields: [utilisateurId], references: [id], onDelete: SetNull)
+
+  promptTemplateId String?           @map("prompt_template_id")
+  promptTemplate   AIPromptTemplate? @relation("PromptTemplateGenerations", fields: [promptTemplateId], references: [id], onDelete: SetNull)
+
+  mode             CategoriePromptAI
+  contextePrompt   String            @map("contexte_prompt") @db.Text
+  contenuGenere    String            @map("contenu_genere") @db.Text
+  modeleUtilise    String?           @map("modele_utilise") // gemini-2.5-flash, etc.
+  jetonsUtilises   Int?              @map("jetons_utilises")
+  scoreQualite     Int?              @map("score_qualite") // Feedback 1 à 5
+  injecteDansFiche Boolean           @default(false) @map("injecte_dans_fiche")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([utilisateurId])
+  @@index([promptTemplateId])
+  @@index([mode])
+  @@map("ai_generation_logs")
+}
+
+// =============================================================================
+// 8. ACCOMPAGNEMENT & TUTORIELS DIDACTIQUES
+// =============================================================================
+
+/// Tutoriels rapides et guides didactiques interactifs
+model TutorielRapide {
+  id              String            @id @default(uuid())
+  code            String            @unique // RECIT_APC, ATELIER_SECURITE, EVALUATION_PAIRS...
+  titre           String
+  description     String            @db.Text
+  categorie       CategorieTutoriel @default(PREMIERS_PAS)
+  dureeEstimeeMin Int               @default(5) @map("duree_estimee_min")
+  badgeNiveau     String?           @map("badge_niveau") // Débutant, Intermédiaire, Avancé
+  icone           String?
+  lienCible       String?           @map("lien_cible")
+  etapes          Json // Liste ordonnée des étapes
+  estPublie       Boolean           @default(true) @map("est_publie")
+  ordre           Int               @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([categorie])
+  @@map("tutoriels_rapides")
+}
+
+// =============================================================================
+// 9. COMMUNICATIONS & NOTIFICATIONS COURRIEL (SMTP / GMAIL)
+// =============================================================================
+
+/// Gabarits des courriels transactionnels et institutionnels
+model EmailTemplate {
+  id         String  @id @default(uuid())
+  code       String  @unique // CONFIRMATION_INSCRIPTION, VALIDATION_COMPTE, NOUVEAU_RETOUR_DIDACTIQUE...
+  nom        String
+  sujet      String
+  corpsHtml  String  @map("corps_html") @db.Text
+  corpsTexte String? @map("corps_texte") @db.Text
+  variables  Json? // ex: ["nom", "prenom", "etablissement", "lien_validation"]
+  estActif   Boolean @default(true) @map("est_actif")
+
+  // Relations
+  emailLogs EmailLog[] @relation("TemplateEmailLogs")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("email_templates")
+}
+
+/// Journal d'audit d'expédition des courriels (SMTP / Gmail)
+model EmailLog {
+  id String @id @default(uuid())
+
+  destinataireEmail String  @map("destinataire_email")
+  destinataireId    String? @map("destinataire_id")
+  destinataire      User?   @relation("UserEmailLogs", fields: [destinataireId], references: [id], onDelete: SetNull)
+
+  templateId String?        @map("template_id")
+  template   EmailTemplate? @relation("TemplateEmailLogs", fields: [templateId], references: [id], onDelete: SetNull)
+
+  sujet         String
+  statut        StatutEnvoiEmail @default(ENVOYE)
+  messageIdSmtp String?          @map("message_id_smtp")
+  erreurMessage String?          @map("erreur_message") @db.Text
+  tentatives    Int              @default(1)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([destinataireEmail])
+  @@index([destinataireId])
+  @@index([statut])
+  @@index([createdAt])
+  @@map("email_logs")
+}
+
+// =============================================================================
+// 10. PARAMÈTRES SYSTÈME & CONFIGURATION GLOBALE
+// =============================================================================
+
+/// Clés-valeurs de configuration de la plateforme JANGANDOO FPT
+model PlatformConfig {
+  cle         String  @id // ex: MAINTENANCE_MODE, CURRENT_ACADEMIC_YEAR, PLATFORM_SLOGAN, SEUIL_VALIDATION_PAIRS
+  valeur      String  @db.Text
+  categorie   String? @default("GENERAL") // GENERAL, SECURITE, NOTIFICATIONS, APC
+  description String? @db.Text
+  estSecurise Boolean @default(false) @map("est_securise")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_configs")
+}
